@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
+  <title>BIMFACE-工程文件的在线浏览及数据服务</title>
+  <meta name="keywords" content="BIMFACE,BIM,模型,轻量化,模型轻量化,建筑,工程文件,Revit,CAD,SketchUp,Navisworks,3ds Max"></meta>
+  <meta name="description" content="BIMFACE面向工程建筑领域，提供了Revit模型、CAD图纸等多种工程文件的轻量化浏览及数据服务。 建筑领域的开发者，可以基于BIMFACE的基础服务，根据最终用户的需求，开发出贴合特定场景的应用。"></meta>
+  <link rel="shortcut icon" href="https://static.bimface.com/favicon.ico" type="image/x-icon" ></link>
+  <link rel="icon" href="https://static.bimface.com/favicon.ico" type="image/x-icon" ></link>
+  <link rel="stylesheet" href="css/example-common.css"></link>
+  <style>
+  	@import url(Build/Cesium/Widgets/widgets.css);
+    html, body, #cesiumContainer {
+    	width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+    }
+    .file-box {
+      	width: 180px;
+      	background-color: #fff;
+      	box-shadow: 0 0 10px 1px #ddd;
+      	position: fixed;
+      	top:75px;
+      	left:20px;
+    }
+    .file-box .tit {
+      	padding:0 20px;
+      	line-height: 40px;
+      	height: 40px;
+      	background-color: #2c2c2c;
+      	color:#fff;
+    }
+    .file-list {
+      	padding:10px 0;
+    }
+    .file-list li {
+      	line-height: 40px;
+      	padding:0px 10px;
+      	cursor: pointer;
+    }
+    .file-list li.on, .file-list li:hover {
+      	background-color:#e7fbf7;
+      	color:#11dab7;
+    }
+    .main {
+      	position: fixed;
+      	top: 75px;
+      	left: 220px;
+      	right: 20px;
+      	bottom: 70px;
+      	background-color: #fff;
+      	box-shadow: 0 0 10px 1px #ddd;
+    }
+    .main .now {
+      	padding: 0 20px;
+      	line-height: 40px;
+      	height: 40px;
+      	background-color: #2c2c2c;
+      	color: #fff;
+    }
+    .map-box {
+      	position: absolute;
+      	top:40px;
+      	left:0;
+      	bottom:0;
+      	right:0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="#" class="logo"></a>
+    <h2>基于GIS+BIM的模型展示平台<i>官方示例</i></h2>
+    <div class="btn-box">
+      <a href="https://github.com/bimface/example-gis" th:href="@{https://github.com/bimface/example-gis}" target="_blank" class="btn btn-sm btn-primary">源代码</a>
+      <a href="http://bimface.com/example" th:href="@{http://bimface.com/example/{id}(id=${exampleId})}" target="_blank" class="btn btn-sm btn-primary">详情介绍</a>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="file-box">
+      <div class="tit">项目列表</div>
+      <ul class="file-list">
+        <li class="on" name="gis-id" th:value="bim1">综合体</li>
+        <li name="gis-id" th:value="bim2">办公楼</li>
+        <li name="gis-id" th:value="bim3">广寒宫</li>
+      </ul>
+    </div>
+
+    <div class="main">
+      <div class="now">当前位置：<a style="color: #11dab7" href="javascript:void(0);" onclick="back2Gis();">GIS地图</a> &gt; <span id="gisModelName"></span></div>
+      <div class="map-box" id="cesiumContainer"></div>
+      <div class="map-box" id="bimContainer" style="display: none"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="w1200">
+      <div class="copyright">
+        Copyright &copy;2016-2018 <a href="http://bimface.com" target="_blank">BIMFACE</a> 京ICP备10021606号-19 <a href="http://www.glodon.com/" target="_blank">广联达</a>旗下产品
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://static.bimface.com/developer/libs/jquery.js"></script>
+  <script src="https://static.bimface.com/api/BimfaceSDKLoader/BimfaceSDKLoader@latest-release.js" charset="utf-8"></script>
+  <script src="Build/Cesium/Cesium.js"></script>
+  <script type="text/javascript" th:inline="javascript">
+  /*<![CDATA[*/
+	  
+	var contextPath = [[${#httpServletRequest.getContextPath()}]];
+  	var viewToken1 = [[${viewToken1}]];
+  	var viewToken2 = [[${viewToken2}]];
+  	var viewToken3 = [[${viewToken3}]];
+  	var currentBimId = "bim1";
+  	var currentBimName = "综合体";
+  	
+  	var entity1;
+  	var entity2;
+  	var entity3;
+  	
+  	var tips;
+  	
+    $(function(){
+      	var _height = window.innerHeight - 105;
+      	$('.container').height(_height + 'px');
+      	$('#cesiumContainer').height((_height - 80) + 'px');
+
+      	$('.file-list li').click(function(){
+      		//debugger;
+      		$('#bimContainer').hide();
+        	$('#cesiumContainer').show();
+        	$(this).addClass('on').siblings().removeClass('on');
+        	
+        	var menuId = $(this).attr('value');
+        	if(menuId === currentBimId){//当重复点击相同gis模型时不重新飞行定位到gis模型
+        		return;
+        	}
+        	
+      		currentBimId = menuId;
+      		currentBimName = $(this).text();
+      		fly2Gis();
+      	})
+    })
+    
+    var viewer;
+	displayGis();
+	fly2Gis();
+	
+	//创建gis地图和模型
+	function displayGis() {
+		$('#gisModelName').text(currentBimName);
+		$('#cesiumContainer').empty();
+		
+   	    //debugger;
+	   	viewer = new Cesium.Viewer('cesiumContainer',{
+	 	    animation:false, //是否创建动画小器件，左下角仪表
+	 	    baseLayerPicker:false, //是否显示图层选择器
+	 	    fullscreenButton:false, //是否显示全屏按钮
+	 	    geocoder:false, //是否显示geocoder小器件，右上角查询按钮
+	 	    homeButton:false, //是否显示Home按钮
+	 	    infoBox : false, //是否显示信息框
+	 	    sceneModePicker:false, //是否显示3D/2D选择器
+	 	    selectionIndicator : false , //是否显示选取指示器组件
+	 	    timeline:false, //是否显示时间轴
+	 	    navigationHelpButton:false, //是否显示右上角的帮助按钮
+	 	    scene3DOnly : true, //如果设置为true，则所有几何图形以3D模式绘制以节约GPU资源
+	 	    navigationInstructionsInitiallyVisible:false,
+	 	    showRenderLoopErrors:false,
+	 	    //imageryProvider : Cesium.createTileMapServiceImageryProvider({
+	     	//	url : Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
+	   		//}),
+	 	});  
+
+	   	//去掉三维地球底部的版本信息
+ 		viewer._cesiumWidget._creditContainer.style.display="none";
+ 		
+	   	//移除所有模型
+ 		viewer.entities.removeAll();
+   	 
+	   	//加载模型1
+  	    var position1 = Cesium.Cartesian3.fromDegrees(116.276128, 40.046672, 0); //位置  
+   	 	var heading1 = Cesium.Math.toRadians(-10);//绕垂直于地心的轴旋转  
+   	 	var pitch1 = Cesium.Math.toRadians(0);     //绕纬度线旋转  
+   	 	var roll1 = Cesium.Math.toRadians(0);      //绕经度线旋转 
+   	 	var hpr1 = new Cesium.HeadingPitchRoll(heading1, pitch1, roll1); 
+   	 	var orientation1 = Cesium.Transforms.headingPitchRollQuaternion(position1, hpr1); 
+
+   	 	entity1 = viewer.entities.add({  
+   	 	    id : 'zht',
+   	 		position : position1,  
+   	 	    orientation : orientation1,  
+   	 	    model : {  
+   	 	        uri : contextPath + '/model/zht.gltf',
+   	 	        scale : 0.005  //缩放倍数
+   	 	    }  
+   	 	});
+   	 	
+   		//加载模型2
+  	    var position2 = Cesium.Cartesian3.fromDegrees(111.6759275615, 40.8493980157, 0); //位置  
+   	 	var heading2 = Cesium.Math.toRadians(-102.0);//绕垂直于地心的轴旋转  
+   	 	var pitch2 = Cesium.Math.toRadians(0);     //绕纬度线旋转  
+   	 	var roll2 = Cesium.Math.toRadians(0);      //绕经度线旋转 
+   	 	var hpr2 = new Cesium.HeadingPitchRoll(heading2, pitch2, roll2); 
+   	 	var orientation2 = Cesium.Transforms.headingPitchRollQuaternion(position2, hpr2); 
+
+   	 	entity2 = viewer.entities.add({  
+   	 	    id : 'bgl',
+   	 		position : position2,  
+   	 	    orientation : orientation2,  
+   	 	    model : {  
+   	 	        uri : contextPath + '/model/bgl.gltf',
+   	 	        scale : 0.0011  //缩放倍数
+   	 	    }  
+   	 	});
+
+   		//加载模型3
+  	    var position3 = Cesium.Cartesian3.fromDegrees(117.898884, 49.195033, 0); //位置  
+   	 	var heading3 = Cesium.Math.toRadians(45.0);//绕垂直于地心的轴旋转  
+   	 	var pitch3 = Cesium.Math.toRadians(0);     //绕纬度线旋转  
+   	 	var roll3 = Cesium.Math.toRadians(0);      //绕经度线旋转 
+   	 	var hpr3 = new Cesium.HeadingPitchRoll(heading3, pitch3, roll3); 
+   	 	var orientation3 = Cesium.Transforms.headingPitchRollQuaternion(position3, hpr3); 
+
+   	 	entity3 = viewer.entities.add({  
+   	 	    id : 'ghg',
+   	 		position : position3,  
+   	 	    orientation : orientation3,  
+   	 	    model : {  
+   	 	        uri : contextPath + '/model/ghg.gltf',
+   	 	        scale : 3  //缩放倍数
+   	 	    }  
+   	 	});
+   	    
+		addTips();
+		addDoubleClick();
+	}
+	
+	//相机飞跃到指定位置
+	function fly2Gis() {
+		$('#bimContainer').hide();
+    	$('#cesiumContainer').show();
+		$('#gisModelName').text(currentBimName);
+		if(tips){//飞行时隐藏Tips
+			tips.style.display = 'none';
+		}
+   	 
+		if(currentBimId === "bim2"){
+	   	 	viewer.camera.flyTo({
+	   	 	    destination :  Cesium.Cartesian3.fromDegrees(111.6759675615 , 40.8478680157, 50.0), //设置位置
+	   	 	    orientation: {
+	   	 	        heading : Cesium.Math.toRadians(0), //方向
+	   	 	        pitch : Cesium.Math.toRadians(-21.34390550872461), //倾斜角度
+	   	 	        roll : Cesium.Math.toRadians(0)
+	   	 	    },
+	   	 		duration:3,
+	   	 		maximumHeight:100000, // 相机最大飞行高度
+	   	 	});
+	   	 	//viewer.trackedEntity = entity2;
+	   	 	viewer.zoomTo(entity2);
+   	    }else if(currentBimId === "bim3"){
+	   	 	viewer.camera.flyTo({
+	   	 	    destination :  Cesium.Cartesian3.fromDegrees(117.898884, 48.975033, 8000.0), //设置位置
+	   	 	    orientation: {
+	   	 	        heading : Cesium.Math.toRadians(0), //方向
+	   	 	        pitch : Cesium.Math.toRadians(-21.34390550872461), //倾斜角度
+	   	 	        roll : Cesium.Math.toRadians(0)
+	   	 	    },
+	   	 		duration:3,
+	   	 		maximumHeight:100000, // 相机最大飞行高度
+	   	 	});
+	   	 	//viewer.trackedEntity = entity3;
+	   	 	viewer.zoomTo(entity3);
+   	    }else{
+	   	 	viewer.camera.flyTo({
+	   	 	    destination :  Cesium.Cartesian3.fromDegrees(116.276028, 40.042172, 70.0), //设置位置
+	   	 	    orientation: {
+	   	 	        heading : Cesium.Math.toRadians(0), //方向
+	   	 	        pitch : Cesium.Math.toRadians(-15), //倾斜角度
+	   	 	        roll : Cesium.Math.toRadians(0)
+	   	 	    },
+	   	 		duration:3,
+	   	 		maximumHeight:100000, // 相机最大飞行高度
+	   	 	});
+	   	 	//viewer.trackedEntity = entity1;
+	   	 	viewer.zoomTo(entity1);
+   	    }
+	}
+	
+	function back2Gis() {
+		$('#bimContainer').hide();
+    	$('#cesiumContainer').show();
+	}
+	
+	//模型添加tips提示
+	function addTips() {
+		// HTML overlay for showing feature name on mouseover
+		tips = document.createElement('div');
+		viewer.container.appendChild(tips);
+		tips.className = 'backdrop';
+		tips.style.display = 'none';
+		tips.style.position = 'absolute';
+		tips.style.bottom = '0';
+		tips.style.left = '0';
+		tips.style.border = '1px solid white';
+		tips.style['pointer-events'] = 'none';
+		tips.style.padding = '10px';
+		tips.style.backgroundColor = '#333333';
+		tips.style.color = 'white';
+
+		viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
+		    // Pick a new feature
+		    var pickedFeature = viewer.scene.pick(movement.endPosition);
+		    if (!Cesium.defined(pickedFeature)) {
+		        tips.style.display = 'none';
+		        return;
+		    }
+		    
+		    // A feature was picked, so show it's overlay content
+		    tips.style.display = 'block';
+		    tips.style.bottom = viewer.canvas.clientHeight - movement.endPosition.y + 'px';
+		    tips.style.left = movement.endPosition.x - 55 + 'px';
+		    tips.textContent = "双击查看BIM模型";
+
+		}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+	}
+	
+	//模型添加双击事件
+	function addDoubleClick() {
+		//绑定GIS模型双击事件
+		var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+		handler.setInputAction(function (movement) { 
+			var pick = viewer.scene.pick(movement.position);
+			if(Cesium.defined(pick)){
+				//console.log('双击了实例');
+	        	$('#bimContainer').show();
+	        	$('#cesiumContainer').hide();
+		        //window.location.href="http://bimface.com/console/share/3d133c28#/home";
+		        //window.open("http://bimface.com/console/share/3d133c28#/home");
+		        
+		        //加载BIMFACE模型
+	        	var viewToken;
+	        	if(currentBimId === "bim2"){
+	        		viewToken = viewToken2;
+	        	}else if(currentBimId === "bim3"){
+	        		viewToken = viewToken3;
+	        	}else{
+	        		viewToken = viewToken1;
+	        	}
+	        	
+	        	$('#bimContainer').empty();
+	        	
+	       	  	// 初始化显示组件
+	       	  	var options = new BimfaceSDKLoaderConfig();
+	       	  	options.viewToken = viewToken;
+	       	  	BimfaceSDKLoader.load(options, successCallback, failureCallback);
+			}
+		}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+	}
+    
+	function successCallback(viewMetaData) {
+   	    // 创建WebApplication，直接显示模型或图纸
+   	    var dom4Show = document.getElementById('bimContainer');
+   	    new Glodon.Bimface.Application.WebApplicationDemo(viewMetaData, dom4Show);
+	}
+
+	function failureCallback(error) {
+   	    console.log(error);
+	};
+	
+  /*]]>*/
+  </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8"></meta>
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge"></meta>
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"></meta>
+  <title>Hello World!</title>
+  <script src="Build/Cesium/Cesium.js"></script>
+  <style>
+      @import url(Build/Cesium/Widgets/widgets.css);
+      html, body, #cesiumContainer {
+          width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <script type="text/javascript" th:inline="javascript">
+  /*<![CDATA[*/
+  var contextPath = [[${#httpServletRequest.getContextPath()}]];
+  var viewer = new Cesium.Viewer('cesiumContainer',{
+	    animation:false, //是否创建动画小器件，左下角仪表
+	    baseLayerPicker:false, //是否显示图层选择器
+	    fullscreenButton:false, //是否显示全屏按钮
+	    geocoder:false, //是否显示geocoder小器件，右上角查询按钮
+	    homeButton:false, //是否显示Home按钮
+	    infoBox : false, //是否显示信息框
+	    sceneModePicker:false, //是否显示3D/2D选择器
+	    selectionIndicator : false , //是否显示选取指示器组件
+	    timeline:false, //是否显示时间轴
+	    navigationHelpButton:false, //是否显示右上角的帮助按钮
+	    scene3DOnly : true, //如果设置为true，则所有几何图形以3D模式绘制以节约GPU资源
+	    navigationInstructionsInitiallyVisible:false,
+	    showRenderLoopErrors:false,
+	    //imageryProvider : Cesium.createTileMapServiceImageryProvider({
+    	//	url : Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')
+  		//}),
+	});  
+
+	viewer._cesiumWidget._creditContainer.style.display="none";
+
+	var position = Cesium.Cartesian3.fromDegrees(111.6758675615 , 40.8554680157, 0); //位置  
+	var heading = Cesium.Math.toRadians(45.0);//绕垂直于地心的轴旋转  
+	var pitch = Cesium.Math.toRadians(0);     //绕纬度线旋转  
+	var roll = Cesium.Math.toRadians(0);      //绕经度线旋转 
+	var hpr = new Cesium.HeadingPitchRoll(heading, pitch, roll); 
+	var orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr); 
+
+	viewer.entities.removeAll();
+	var entity = viewer.entities.add({  
+	    id : 'bimface',
+		position : position,  
+	    orientation : orientation,  
+	    model : {  
+	        uri : contextPath + '/Apps/SampleData/models/CesiumGround/bimface.gltf',
+	        scale : 0.1  //缩放倍数
+	    }  
+	});
+
+	viewer.camera.flyTo({
+	    destination :  Cesium.Cartesian3.fromDegrees(111.6738675615 , 40.8504680157, 200.0), //设置位置
+	    orientation: {
+	        heading : Cesium.Math.toRadians(0), //方向
+	        pitch : Cesium.Math.toRadians(-21.34390550872461), //倾斜角度
+	        roll : Cesium.Math.toRadians(0)
+	    },
+	});
+
+	var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+	handler.setInputAction(function (movement) { 
+		var pick = viewer.scene.pick(movement.position);
+		if(Cesium.defined(pick)){
+			console.log('双击了实例');
+	              //window.location.href="http://bimface.com/console/share/3d133c28#/home";
+	              window.open("http://bimface.com/console/share/3d133c28#/home");
+		}
+	}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+	// HTML overlay for showing feature name on mouseover
+	var nameOverlay = document.createElement('div');
+	viewer.container.appendChild(nameOverlay);
+	nameOverlay.className = 'backdrop';
+	nameOverlay.style.display = 'none';
+	nameOverlay.style.position = 'absolute';
+	nameOverlay.style.bottom = '0';
+	nameOverlay.style.left = '0';
+	nameOverlay.style.border = '1px solid white';
+	nameOverlay.style['pointer-events'] = 'none';
+	nameOverlay.style.padding = '10px';
+	nameOverlay.style.backgroundColor = '#333333';
+	nameOverlay.style.color = 'white';
+
+	viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
+	    // Pick a new feature
+	    var pickedFeature = viewer.scene.pick(movement.endPosition);
+	    if (!Cesium.defined(pickedFeature)) {
+	        nameOverlay.style.display = 'none';
+	        return;
+	    }
+	    
+	    // A feature was picked, so show it's overlay content
+	    nameOverlay.style.display = 'block';
+	    nameOverlay.style.bottom = viewer.canvas.clientHeight - movement.endPosition.y + 'px';
+	    nameOverlay.style.left = movement.endPosition.x - 55 + 'px';
+	    nameOverlay.textContent = "双击查看BIM模型";
+
+	}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+	
+  /*]]>*/
+  </script>
+</body>
+</html>
