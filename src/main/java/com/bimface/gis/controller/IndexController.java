@@ -19,7 +19,7 @@ import com.bimface.gis.utils.HttpUtil;
 @Controller
 @RequestMapping("/")
 public class IndexController{
-	private static final String URL_GET_VIEW_TOKEN = "http://bimface.com/console/share/preview/viewtoken";
+	private static final String URL_GET_VIEW_TOKEN = "https://bimface.com/console/share/preview/viewtoken";
 
 	@Value("${share.token.bim1}")
     private String shareTokenBim1;
