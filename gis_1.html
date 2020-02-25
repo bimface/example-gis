@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>BIMFACE-工程文件的在线浏览及数据服务</title>
+    <meta name="keywords" content="BIMFACE,BIM,模型,轻量化,模型轻量化,建筑,工程文件,Revit,CAD,SketchUp,Navisworks,3ds Max"/>
+    <meta name="description" content="BIMFACE面向工程建筑领域，提供了Revit模型、CAD图纸等多种工程文件的轻量化浏览及数据服务。 建筑领域的开发者，可以基于BIMFACE的基础服务，根据最终用户的需求，开发出贴合特定场景的应用。"/>
+    <link rel="shortcut icon" href="//static.bimface.com/favicon.ico" type="image/x-icon" />
+    <link rel="icon" href="//static.bimface.com/favicon.ico" type="image/x-icon" />
+    <link href="css/CesiumThree.css" rel="stylesheet" type="text/css" media="all" />
+    <link rel="stylesheet" href="css/example-common.css" />
+    <script src="Build/Cesium/Cesium.js"></script>
+    <script src="//static.bimface.com/api/Glodon/Bimface@3.6.62/CesiumLoader.js"></script>
+    <script src="//static.bimface.com/api/BimfaceSDKLoader/BimfaceSDKLoader@latest-release.js"></script>
+    <style>
+        .container {
+            height: calc(100vh - 100px);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <a href="/" class="logo"></a>
+        <h2>基于GIS+BIM的模型展示平台<i>官方示例</i></h2>
+        <div class="btn-box">
+            <a href="https://github.com/bimface/example-gis" target="_blank" class="btn btn-sm btn-primary">源代码</a>
+        </div>
+    </header>
+    <div class="container">
+        <div id="cesiumContainer" class="cesiumContainer"></div>
+        <div id="ThreeContainer" class="ThreeContainer"></div>
+    </div>
+    <footer>
+        <div class="w1200">
+        <div class="copyright">
+            Copyright &copy;2016-2020 <a href="//bimface.com" target="_blank">BIMFACE</a> 京ICP备10021606号-19 <a href="//www.glodon.com/" target="_blank">广联达</a>旗下产品
+        </div>
+        </div>
+    </footer>
+
+<script>
+    var appViewer;
+    var viewer;
+    var curViewToken;
+    var cesiumManager;
+    fetch('https://bimface.com/api/console/share/preview/viewtoken?token=053f35da').then(function (resp) {
+        return resp.json();
+    }).then(function (resp) {
+        var viewToken = resp.data;
+        var BimfaceLoaderConfig = new BimfaceSDKLoaderConfig();
+        BimfaceLoaderConfig.viewToken = viewToken;
+        BimfaceSDKLoader.load(BimfaceLoaderConfig, onSDKLoadSucceeded, onSDKLoadFailed);
+
+        function onSDKLoadSucceeded(metaData) {
+            var cesiumContainer = document.getElementById('cesiumContainer');
+            cesiumConfig = new Glodon.Bimface.Plugins.Cesium.CesiumConfig();
+            cesiumConfig.imageryLayer = Glodon.Bimface.Plugins.Cesium.ImageProviderOption.Google;
+            cesiumConfig.container = cesiumContainer;
+            cesiumConfig.accessToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1OTM5ZGNmZS1mOWVhLTRjMDUtYmM5OC0xZjg3OGFlODQxZmQiLCJpZCI6MTM5MDUsInNjb3BlcyI6WyJhc3IiLCJnYyJdLCJpYXQiOjE1NjQzODM3NDF9._34YR5UP7JJs_qMafM0Amo_7Hd2ruczyWpVZBR5PsTs`;
+            cesiumConfig.latitude = 29.8411133345;
+            cesiumConfig.longitude = 121.629350000000;
+            cesiumConfig.rotation = -0.5;
+            cesiumConfig.duration = 5;
+            cesiumConfig.offsetHeight = 0;
+            cesiumConfig.clipHeight = 72;
+            cesiumManager = new Glodon.Bimface.Plugins.Cesium.CesiumManager(cesiumConfig);
+            cesiumManager.cesiumLoader.init(initWebview, metaData);
+        }
+
+        function initWebview(metaData) {
+            var config = new Glodon.Bimface.Application.WebApplication3DConfig();
+            config.enableViewHouse = false;
+            config.Buttons = ["Home", "RectangleSelect", "Measure", "Walk", "Property", "Information"];
+            //去掉背景色
+            var cesiumBackground = {};
+            var newColor = new Glodon.Web.Graphics.Color(246, 250, 255, 0);
+            cesiumBackground.color = newColor;
+            config.domElement = document.getElementById('ThreeContainer');
+            config.backgroundColor = [cesiumBackground];
+
+            config.enableConstraintZoom = false;
+            config.borderLineVisibility = [
+                {
+                    "categoryId": -2000151,  // 常规模型
+                    "family": "挡土墙-4P"
+                },
+                {
+                    "categoryId": -2000151,  // 常规模型
+                    "family": "挡土墙-8P"
+                },
+                {
+                    "categoryId": -2000151,  // 常规模型
+                    "family": "挡土墙垫层-4P"
+                },
+                {
+                    "categoryId": -2000032,  // 楼板
+                    "familyType": "白标线"
+                },
+                {
+                    "categoryId": -2000032,  // 楼板
+                    "familyType": "黄标线"
+                },
+                {
+                    "categoryId": -2000032,  // 楼板
+                    "familyType": "机非隔离带_面层_180"
+                },
+                {
+                    "categoryId": -2000032,  // 楼板
+                    "familyType": "人行道_面层_180"
+                },
+                {
+                    "categoryId": -2000032,  // 楼板
+                    "familyType": "绿化带"
+                },
+                {
+                    "categoryId": -2001260  // 场地
+                },
+                {
+                    "specialty": "环境"
+                },
+                {
+                    "specialty": "桥梁"
+                },
+                {
+                    "specialty": "管线"
+                }
+            ];
+
+            var eventManager = Glodon.Bimface.Application.WebApplication3DEvent;
+            app = new Glodon.Bimface.Application.WebApplication3D(config);
+            viewer3D = app.getViewer();
+
+            if (metaData.viewToken) {
+                cesiumManager.curViewToken = metaData.viewToken;
+                viewer3D.addView(metaData.viewToken);
+            } else {
+                viewer3D.addModel(metaData);
+            }
+
+            viewer3D.addEventListener(Glodon.Bimface.Viewer.Viewer3DEvent.ViewAdded, callbackFinished);
+
+        }
+
+        function callbackFinished() {
+            // Various camera modifying before first time render.
+            cesiumManager.initCameraScale(viewer3D);
+
+            //control angles
+            viewer3D.lockAxis('Z', [0.1, Math.PI / 2.01]);
+
+            viewer3D.addEventListener(Glodon.Bimface.Viewer.Viewer3DEvent.Rendered, function () {
+                cesiumManager.updateCesiumCamera();
+
+                var overridePipesColorCondition = [
+                    {
+                        "specialty": "环境"
+                    }
+                ];
+                var opaqueColor = new Glodon.Web.Graphics.Color(192, 192, 192, 0.5);
+                viewer3D.overrideComponentsColorByObjectData(overridePipesColorCondition, opaqueColor);
+
+            });
+        }
+
+        function onSDKLoadFailed(error) {
+            console.log(error);
+
+        };
+
+        function load() {
+            if (viewAdded) {
+
+
+            }
+        }
+
+    });
+
+
+</script>
+
+</body>
+
+</html>
