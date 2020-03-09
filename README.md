@@ -1,7 +1,9 @@
+示例文件为gis_1.html
+
 ### 引用并配置Cesium
 1. 需要引用CesiumJs，具体环境搭建请参考Cesium官网：
 `https://cesium.com/cesiumjs/`
-
+2. 引用BIMFACE的CesiumLoader.js
 
 
 ### 准确配置模型位置的方案
