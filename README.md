@@ -3,7 +3,7 @@
 ### 引用并配置Cesium
 1. 需要引用CesiumJs，具体环境搭建请参考Cesium官网：
 `https://cesium.com/cesiumjs/`
-2. 引用BIMFACE的CesiumLoader.js `https://static.bimface.com/api/Glodon/Bimface@3.7.126/CesiumLoader.js`
+2. 引用BIMFACE的CesiumLoader.js `https://static.bimface.com/api/Glodon/Bimface@3.6.74/CesiumLoader.js`
 
 
 ### 准确配置模型位置的方案
